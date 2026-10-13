@@ -37,7 +37,7 @@ async function main() {
       'X-GitHub-Api-Version': '2022-11-28',
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ ref: REF, inputs: { session: String(next), resume: 'true' } }),
+    body: JSON.stringify({ ref: REF, inputs: { session: String(next), resume: 'true', ...(process.env.RETRIGGER_WINDOW_MINUTES ? { window_minutes: process.env.RETRIGGER_WINDOW_MINUTES } : {}) } }),
     signal: AbortSignal.timeout(20000)
   });
   if (res.status === 204) { console.log(`[retrigger] 已触发第 ${next} 轮会话。`); return; }

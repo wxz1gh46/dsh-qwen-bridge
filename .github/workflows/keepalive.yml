@@ -11,6 +11,10 @@ name: Session Keepalive
 on:
   workflow_dispatch:
     inputs:
+      window_minutes:
+        description: '会话窗口分钟数（默认 330；上限 350）'
+        required: false
+        default: '330'
       session:
         description: '会话编号（每次自动重启递增）'
         required: false
@@ -58,7 +62,7 @@ jobs:
       - name: 会话窗口运行（可替换为你的长任务）
         env:
           SESSION: ${{ github.event.inputs.session || '1' }}
-          WINDOW_MINUTES: '330'
+          WINDOW_MINUTES: ${{ github.event.inputs.window_minutes || '330' }}
         run: node scripts/session-window.mjs
 
       - name: 保存会话状态
