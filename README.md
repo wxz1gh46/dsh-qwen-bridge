@@ -136,11 +136,27 @@ persist/state/
 ## 测试
 
 ```sh
-node --test tests/*.test.mjs      # 86 项回归测试
+node --test tests/*.test.mjs      # 97 项测试
 node scripts/check-sites.mjs      # 站点适配层完整性
 node scripts/check-manifest.mjs   # manifest 与站点一致
 node scripts/verify-source.mjs    # 文件哈希
+node scripts/assert-state.mjs     # 持久化状态可用
 ```
+
+### 已验证（实跑）
+
+| 项目 | 结果 |
+| --- | --- |
+| 单元/回归测试 | 97 通过 / 0 失败 |
+| CI 工作流 | ✅ success（测试、结构校验、打包 3 步全过） |
+| E2E 持久化工作流 | ✅ success（恢复→运行→落盘→缓存→制品→断言） |
+| 跨轮续接 | ✅ 第 2 轮从第 1 轮 `window-complete` 继续 |
+| 自动重触发 | ✅ `retrigger.mjs` 真实触发下一轮 workflow |
+
+### 未验证
+
+Qwen 真实收发、Windows GUI 启动器 —— 需要图形界面 + 登录态，CI 环境无法覆盖。
+见 [TESTING.md](TESTING.md)。
 
 ---
 
