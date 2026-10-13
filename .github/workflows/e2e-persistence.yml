@@ -1,0 +1,77 @@
+name: E2E Persistence
+
+# 端到端验证「持久化 + 自动重触发」闭环。
+# 用 15 秒窗口连续跑 3 轮：
+#   第 1 轮初始化状态 -> 第 2 轮恢复并续写 -> 第 3 轮再次恢复。
+# 最后断言每轮都读到了上一轮的检查点，证明跨轮续接成立。
+# 这是对 keepalive 逻辑的加速验证（keepalive 本身是 330 分钟窗口）。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/**'
+      - '.github/workflows/e2e-persistence.yml'
+  pull_request:
+    paths:
+      - 'scripts/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: e2e-persistence
+  cancel-in-progress: false
+
+jobs:
+  round:
+    name: 持久化闭环（15s 窗口 × 3 轮）
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: 恢复状态（第 ${{ github.run_attempt }} 次尝试）
+        uses: actions/cache/restore@v4
+        with:
+          path: persist/state
+          key: e2e-state-${{ github.run_id }}
+          restore-keys: e2e-state-
+
+      - name: 读取恢复到的状态
+        run: node scripts/session-state.mjs --read
+
+      - name: 极短窗口运行
+        env:
+          SESSION: '1'
+          WINDOW_TICKS: '3'
+          TICK_SECONDS: '1'
+          WINDOW_MINUTES: '1'
+        run: node scripts/session-window.mjs
+
+      - name: 写入状态
+        if: always()
+        run: node scripts/session-state.mjs --write
+
+      - name: 缓存状态
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: persist/state
+          key: e2e-state-${{ github.run_id }}
+
+      - name: 上传状态制品
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-state-${{ github.run_id }}-${{ github.run_attempt }}
+          path: persist/state
+          retention-days: 7
+
+      - name: 断言状态完整
+        run: node scripts/assert-state.mjs
