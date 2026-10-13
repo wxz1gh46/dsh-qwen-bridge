@@ -1,0 +1,16 @@
+node_modules/
+*.log
+
+# 本机运行产生：登录态、状态检查点、凭证
+persist/state/*
+!persist/state/.gitkeep
+persist/state/chrome-profile/
+persist/state/*.zip
+windows/secrets.ps1
+web-bridge/
+.eval/
+
+# 编辑器
+.vscode/
+.idea/
+.DS_Store

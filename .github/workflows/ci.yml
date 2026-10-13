@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: 测试与源码完整性
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: 安装依赖
+        run: npm install --no-audit --no-fund
+
+      - name: 回归测试
+        run: node --test tests/*.test.mjs
+
+      - name: 校验浏览器脚本语法
+        run: |
+          for f in extension/*.js extension/sites/*.js; do node --check "$f"; done
+
+      - name: 校验 manifest 与站点适配层一致
+        run: node scripts/check-manifest.mjs
+
+      - name: 校验站点适配层可独立加载
+        run: node scripts/check-sites.mjs
+
+  package:
+    name: 打包扩展与插件
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: 生成结构清单
+        run: node scripts/manifest-report.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bridge-bundle
+          path: |
+            extension/
+            plugins/
+            bin/
+          retention-days: 14

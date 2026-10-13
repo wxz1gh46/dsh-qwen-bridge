@@ -1,0 +1,88 @@
+name: Session Keepalive
+
+# 目标：给长任务会话提供「6 小时窗口 + 自动重启 + 状态持久化」的骨架。
+# 说明：GitHub Actions 单 job 上限 6 小时（GitHub 托管 runner）。
+# 本工作流在窗口结束前保存状态到 artifact/cache，并自动触发下一轮，形成连续会话。
+#
+# 重要：Actions runner 没有图形界面，也没有你的浏览器登录态，
+# 因此这里不会、也无法运行本仓库的 Chrome 网页桥接。
+# 本工作流负责的是「会话生命周期与持久化」，桥接本体必须在有 GUI 的机器上运行。
+
+on:
+  workflow_dispatch:
+    inputs:
+      session:
+        description: '会话编号（每次自动重启递增）'
+        required: false
+        default: '1'
+      resume:
+        description: '是否恢复上次状态'
+        required: false
+        default: 'true'
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: keepalive-session
+  cancel-in-progress: false
+
+jobs:
+  session:
+    name: 会话窗口 (≤6h)
+    runs-on: ubuntu-latest
+    # GitHub 托管 runner 的硬上限是 360 分钟。
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: 恢复上次会话状态
+        if: ${{ github.event.inputs.resume != 'false' }}
+        uses: actions/cache/restore@v4
+        with:
+          path: persist/state
+          key: bridge-state-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            bridge-state-
+
+      - name: 汇总会话状态
+        env:
+          SESSION: ${{ github.event.inputs.session || '1' }}
+        run: node scripts/session-state.mjs --read
+
+      - name: 会话窗口运行（可替换为你的长任务）
+        env:
+          SESSION: ${{ github.event.inputs.session || '1' }}
+          WINDOW_MINUTES: '330'
+        run: node scripts/session-window.mjs
+
+      - name: 保存会话状态
+        if: always()
+        run: node scripts/session-state.mjs --write
+
+      - name: 缓存会话状态
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: persist/state
+          key: bridge-state-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: 上传状态制品（跨缓存失效的兜底）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridge-state-${{ github.run_id }}
+          path: persist/state
+          retention-days: 90
+
+      - name: 自动触发下一轮会话
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SESSION: ${{ github.event.inputs.session || '1' }}
+        run: node scripts/retrigger.mjs

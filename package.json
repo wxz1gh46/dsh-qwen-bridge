@@ -1,0 +1,63 @@
+{
+  "name": "dsh-web-bridge",
+  "version": "0.3.0",
+  "description": "DSH Harness browser bridge — 支持 Qwen 国际版 / DeepSeek 网页（无 API）",
+  "type": "module",
+  "main": "./plugins/dsh-web-bridge/index.js",
+  "exports": {
+    ".": "./plugins/dsh-web-bridge/index.js",
+    "./package.json": "./package.json",
+    "./client": "./plugins/dsh-web-bridge/client.js",
+    "./cordis.patch.yml": "./plugins/dsh-web-bridge/cordis.patch.yml"
+  },
+  "bin": {
+    "dsh-web-bridge": "./bin/dsh-web-bridge.mjs"
+  },
+  "files": [
+    "plugins/dsh-web-bridge/",
+    "extension/",
+    "bin/",
+    "scripts/",
+    "windows/",
+    "README.md",
+    "TESTING.md",
+    "SECURITY.md",
+    "SOURCE.json"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wxz1gh46/dsh-qwen-bridge.git"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./plugins/dsh-web-bridge/cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-renderer"
+      ],
+      "platform": "web"
+    }
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh-llm": "0.1.5-rc.2",
+    "@deepseek-ai/schemastery": "3.18.2",
+    "ajv": "8.20.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "verify:source": "node scripts/verify-source.mjs",
+    "check:sites": "node scripts/check-sites.mjs",
+    "check:manifest": "node scripts/check-manifest.mjs",
+    "update:source": "node scripts/update-source.mjs",
+    "state:read": "node scripts/session-state.mjs --read",
+    "state:write": "node scripts/session-state.mjs --write"
+  }
+}
